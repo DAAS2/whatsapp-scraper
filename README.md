@@ -1,85 +1,163 @@
-# WhatsApp Link Harvester
+# WhatsApp Link Summariser
 
-Reads the last N messages you sent to **your own WhatsApp self-chat** ("Message yourself"), scrapes every link in them (GitHub, YouTube, Instagram, LinkedIn, X, Reddit, papers, packages, articles...), and uses **Gemini** to organize everything into a topic-structured markdown library with sections like *Learnings & Concepts* and *Pathway: What to Learn Next*.
+A WhatsApp-based link summarisation agent that turns URLs sent in chat into useful, readable replies.
 
-## Setup
+Send the bot a supported link and it fetches the relevant content, extracts the important information, optionally uses AI to create a concise summary, and responds directly in WhatsApp.
 
-```bash
-npm install
-npx playwright install chromium    # optional: better scraping of JS-walled pages
-cp .env.example .env              # then paste your GEMINI_API_KEY
+> Built for personal productivity, shared chats, and quickly understanding links without leaving WhatsApp.
+
+## Features
+
+- Receive and process URLs sent through WhatsApp
+- Detect multiple links in a single message
+- Extract content from supported platforms:
+  - GitHub repositories
+  - Instagram posts and profiles
+  - Reddit posts
+  - X/Twitter posts
+  - YouTube videos
+  - General web pages
+- Fetch and clean page content before processing
+- Generate short, chat-friendly summaries with optional AI support
+- Reply directly to the originating WhatsApp chat
+- Configurable environment variables and modular provider architecture
+- Separate scraping, extraction, AI, rendering, and WhatsApp layers for easier extension
+
+## How it works
+
+```text
+WhatsApp message containing URL(s)
+            ↓
+URL detection and routing
+            ↓
+Platform-specific scraper or generic web fetcher
+            ↓
+Content extraction and normalisation
+            ↓
+Optional AI summarisation
+            ↓
+Formatted WhatsApp reply
 ```
 
-- **Gemini key**: free at [Google AI Studio](https://aistudio.google.com/apikey)
-- **GitHub token** (optional in `.env`): raises GitHub API limit from 60/hr to 5,000/hr
+## Project structure
 
-## Run
+```text
+src/
+├── ai/          # AI provider integration and summarisation
+├── extract/     # Content extraction and normalisation
+├── render/      # WhatsApp-friendly response formatting
+├── scrape/      # Site-specific and generic URL scrapers
+├── whatsapp/    # WhatsApp connection and message handling
+├── cli.js       # Command-line entry point
+├── config.js    # Environment/configuration loading
+└── pipeline.js  # End-to-end link-processing pipeline
+```
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 18 or later
+- npm
+- A WhatsApp account available for QR-code authentication
+- An AI API key if you want AI-generated summaries
+
+### Installation
+
+```bash
+git clone [https://github.com/DAAS2/whatsapp-scraper.git](https://github.com/DAAS2/whatsapp-scraper.git)
+cd whatsapp-scraper
+npm install
+```
+
+### Configure environment variables
+
+Create a local environment file:
+
+```bash
+cp .env.example .env
+```
+
+Then update `.env` with the values required by your chosen AI provider and runtime configuration.
+
+Never commit `.env`, WhatsApp session data, or API keys. The repository’s `.gitignore` is configured to exclude these local files.
+
+### Run the bot
 
 ```bash
 npm start
 ```
 
-1. A QR code appears — scan it in WhatsApp (Settings → Linked devices → Link a device).
-2. The agent reads your self-chat history until it has 150 link-messages (configurable via `MAX_LINK_MESSAGES`).
-3. Links are scraped (with per-site fallback chains + local cache), classified by Gemini, clustered into a topic outline, and rendered to:
+On the first run, scan the QR code with WhatsApp to authenticate the session.
 
-```
-resources/whatsapp-links-YYYY-MM-DD.md
-```
+After connecting, send a supported URL to the configured WhatsApp chat. The bot will process the link and respond with an extracted or AI-generated summary.
 
-The WhatsApp session persists in `session/` — subsequent runs don't need a new QR scan.
+## Supported sources
 
-### Commands
-
-| Command | What it does |
+| Source | Support |
 |---|---|
-| `npm start` | Full pipeline: collect → extract → scrape → classify → outline → render |
-| `npm start -- --offline` | Skip WhatsApp; reuse the links already in `data/links.json` |
-| `npm start -- --no-cache` | Ignore the scrape cache and re-fetch everything |
-| `npm start -- --fresh` | Delete the WhatsApp session (re-scan QR) |
-| `npm start -- --limit=50` | Override the 150-message limit |
-| `npm start -- collect\|extract\|enrich\|classify\|outline\|render` | Run a single stage (chain them: `npm start -- classify outline render`) |
+| GitHub | Repository and link metadata extraction |
+| Instagram | Post/profile content extraction where accessible |
+| Reddit | Post content extraction |
+| X/Twitter | Post link handling and extraction |
+| YouTube | Video link extraction |
+| Other websites | Generic page fetching and content extraction |
 
-## How link scraping works
+Availability may depend on a platform’s public access rules, login requirements, rate limits, robots policies, and changes to its page structure.
 
-Each link goes down a fallback chain, stopping as soon as good metadata exists:
+## Configuration
 
-1. **Specialized scrapers** — GitHub REST API (README + topics + stars), YouTube oEmbed, Reddit JSON, X via fxtwitter, npm/PyPI registry APIs
-2. **Generic fetch** — browser UA + og-tags + body-text extraction (works for arXiv, blogs, docs, most sites)
-3. **Headless browser** (Playwright, only if installed) — JS-walled pages
-4. **Minimal** — domain + slug; Gemini still classifies from that
+Use `.env.example` as the source of truth for available environment variables.
 
-Instagram Reels/posts are extracted via a dedicated scraper: it tries Instagram's public `embed/captioned` page first, then renders the reel page in the system browser (Edge/Chrome via Playwright — no browser download needed) to pull og-tags containing author, caption, likes and comments. For even more reliable extraction, put your Instagram `sessionid` cookie in `.env` as `IG_SESSIONID=...` (optional). LinkedIn posts remain login-walled and get degraded metadata. Results are cached in `cache/scrape/`, so re-runs are free and don't burn Gemini quota.
+Typical configuration includes:
 
-## Output format
+```env
+# AI provider credentials
+OPENAI_API_KEY=your_api_key_here
 
-```markdown
-## AI & LLMs
-### Learnings & Concepts
-- 📄 **[Attention Is All You Need](https://arxiv.org/abs/1706.03762)**
-  One-sentence description of what it is.
-  *paper · transformers, attention · ★ 12,000*
+# Optional AI model configuration
+OPENAI_MODEL=your_model_name
 
-### Pathway: What to Learn Next
-...
+# Runtime/logging settings
+LOG_LEVEL=info
 ```
 
-Sections and sub-headings are decided by Gemini from your actual link mix; every link appears in exactly one subsection (with a repair pass + "Miscellaneous" catch-all).
+The exact variable names and required values may vary as the project evolves, so check `.env.example` before running the application.
 
-## Files
+## Development
 
-| Path | Purpose |
-|---|---|
-| `data/raw-messages.json` | Collected messages from your self-chat |
-| `data/links.json` | Extracted + deduped links |
-| `data/links.enriched.json` | Scrape results |
-| `data/links.classified.json` | Gemini classifications |
-| `data/outline.json` | Topic structure |
-| `cache/scrape/` | Scrape cache (keyed by URL) |
-| `resources/` | The final markdown library |
-| `session/` | WhatsApp credentials — **never commit this** |
+Run the project locally:
 
-## Caveats
+```bash
+npm install
+npm start
+```
 
-- This uses WhatsApp's **unofficial** protocol (Baileys) for your own account. Read-only, low volume → low risk, but not risk-free. Don't spam-run it.
-- Gemini free tier (~10 req/min) is throttled client-side; a 150-link run takes ~2-3 min of AI time. Cache keeps re-runs at $0.
+Useful places to extend the application:
+
+- Add a new platform handler in `src/scrape/`
+- Register the handler through the scraper registry/router
+- Improve content cleaning in `src/extract/`
+- Change response formatting in `src/render/`
+- Swap or extend AI behaviour in `src/ai/`
+- Update message handling in `src/whatsapp/`
+
+## Privacy and responsible use
+
+This project is intended for processing links that you are permitted to access and share.
+
+- Do not use it to access private content, bypass authentication, evade platform restrictions, or collect personal data without permission.
+- Respect the terms of service, robots policies, copyright, and rate limits of websites you process.
+- Treat WhatsApp session files and API keys as sensitive credentials.
+- Use the bot only in chats where participants understand and consent to its presence and behaviour.
+
+## Limitations
+
+- Social platforms frequently change their page structure and access controls.
+- Some sites require authentication or restrict automated access.
+- AI summaries can be incomplete or inaccurate; verify important information at the original source.
+- WhatsApp automation may be subject to platform restrictions and account-level risk.
+
+## License
+
+MIT 
