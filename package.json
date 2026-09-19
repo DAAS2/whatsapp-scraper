@@ -1,0 +1,27 @@
+{
+  "name": "whatsapp-link-harvester",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reads links you send to your own WhatsApp chat, scrapes them, and organizes everything into a topic-structured markdown library via Gemini.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "demo": "node scripts/demo.js",
+    "web:data": "node scripts/build-web-data.js",
+    "web": "node scripts/build-web-data.js && npm --prefix web run dev",
+    "web:build": "npm run web:data && npm --prefix web run build && npm --prefix web run preview"
+  },
+  "dependencies": {
+    "@google/genai": "^1.16.0",
+    "baileys": "^7.0.0-rc14",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "pino": "^9.4.0",
+    "playwright": "^1.48.0",
+    "qrcode-terminal": "^0.12.0",
+    "undici": "^7.3.0"
+  }
+}
