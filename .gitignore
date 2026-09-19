@@ -6,6 +6,6 @@ cache/
 resources/
 *.log
 web
-.impeccable
+.impeccable/
 DESIGN.md
 PRODUCT.md
